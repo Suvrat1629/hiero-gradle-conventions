@@ -107,10 +107,10 @@ class QualityGateTest {
                 """
                 // SPDX-License-Identifier: Apache-2.0
                 module org.hiero.product.module.a {
+                    exports org.hiero.product.module.a;
+
                     requires com.fasterxml.jackson.databind;
                     requires org.apache.commons.lang3;
-
-                    exports org.hiero.product.module.a;
                 }
                 """
                     .trimIndent()
@@ -208,6 +208,37 @@ class QualityGateTest {
             )
 
         assertThat(result.task(":qualityGate")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    }
+
+    @Test
+    fun `spotlessApply preserves inline comments in module-info directives`() {
+        val p = GradleProject().withMinimalStructure()
+        p.moduleBuildFile("""plugins { id("org.hiero.gradle.module.library") }""")
+        val moduleInfo =
+            p.moduleInfoFile(
+                """
+                module org.hiero.product.module.a {
+                    requires transitive javax.inject;
+                    requires transitive java.compiler; // javax.annotation.processing.Generated
+                }
+                """
+                    .trimIndent()
+            )
+
+        val result = p.run("spotlessApply")
+
+        assertThat(moduleInfo)
+            .hasContent(
+                """
+                // SPDX-License-Identifier: Apache-2.0
+                module org.hiero.product.module.a {
+                    requires transitive java.compiler; // javax.annotation.processing.Generated
+                    requires transitive javax.inject;
+                }
+                """
+                    .trimIndent()
+            )
+        assertThat(result.task(":spotlessApply")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     }
 
     @Test
